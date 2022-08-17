@@ -1,13 +1,23 @@
 #----------------------------------------------------------------------------#
 # Imports
 #----------------------------------------------------------------------------#
+# My imports
+from distutils.log import error
+from email.policy import default
+from re import T
+from flask import Flask, jsonify, redirect, render_template, request, url_for, abort
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import ForeignKey, Integer, true
+import sys
+from flask_migrate import Migrate
+# My imports end here
 
 import json
 import dateutil.parser
 import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
 from flask_moment import Moment
-from flask_sqlalchemy import SQLAlchemy
+#from flask_sqlalchemy import SQLAlchemy
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
@@ -18,17 +28,20 @@ from forms import *
 
 app = Flask(__name__)
 moment = Moment(app)
-app.config.from_object('config')
-db = SQLAlchemy(app)
+
+# app.config.from_object('config') -> config using raw array data
 
 # TODO: connect to a local postgresql database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ayodele@localhost:5432/fyyurapp'
+db = SQLAlchemy(app)
 
+migrate = Migrate(app, db)
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
 
 class Venue(db.Model):
-    __tablename__ = 'Venue'
+    __tablename__ = 'venue'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
@@ -38,11 +51,19 @@ class Venue(db.Model):
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    #shows = db.relationship('Shows', backref='Venues', lazy=True)
+    show_id = db.Column(db.Integer, db.ForeignKey('show.id'), nullable= False)
+    artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable= False)
+    
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
+artist_show = db.Table('artist_show',
+                      db.Column('artist_id', db.Integer, db.ForeignKey('artist.id')),
+                      db.Column('show_id', db.Integer, db.ForeignKey('show.id'))
+                      )
 class Artist(db.Model):
-    __tablename__ = 'Artist'
+    __tablename__ = 'artist'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
@@ -52,10 +73,24 @@ class Artist(db.Model):
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    venues = db.relationship('Venue', backref='artist', lazy=True)
+    shows = db.relationship('Show', secondary=artist_show, backref='artist')
+
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
+
+class Show(db.Model):
+      __tablename__ = 'show'
+
+      id = db.Column(db.Integer, primary_key=True)
+      name = db.Column(db.String(120))
+      date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+      #artist_id = db.Column(db.Integer, db.ForeignKey('artists.id'), nullable=False)
+      #venue_id = db.Column(db.Integer, db.ForeignKey('venues.id'), nullable=False)
+      venues = db.relationship('Venue', backref='shows', lazy=True)
+
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -85,8 +120,12 @@ def index():
 
 @app.route('/venues')
 def venues():
-  # TODO: replace with real venues data.
-  #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
+  # # TODO: replace with real venues data.
+  # #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
+  # return render_template('pages/venues.html', 
+  # areas = Show.query.all(),
+  # );
+  
   data=[{
     "city": "San Francisco",
     "state": "CA",
