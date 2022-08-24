@@ -67,7 +67,7 @@ def index():
 @app.route("/venues")
 def venues():     
   #  num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-  response_data = []
+  response_list = []
 
   try:
     venue_places = db.session.query(distinct(Venue.city), Venue.state).all()
@@ -75,32 +75,32 @@ def venues():
     today = datetime.now()
 
     for place in venue_places:
-      city = place[0]
-      state = place[1]
+          city = place[0]
+          state = place[1]
+          
+          place_data = {"city": city, "state": state, "venues": []}
+          
+          venues = Venue.query.filter_by(city=city, state=state).all()
+          
+          for venue in venues:
+                venue_name = venue.name
+                venue_id = venue.id
+                
+                upcoming_shows = (
+                  Show.query.filter_by(venue_id=venue_id)
+                  .filter(Show.date > today)
+                  .all()
+                )
+                
+                venue_data = {
+                  "id": venue_id,
+                  "name": venue_name,
+                  "num_upcoming_shows": len(upcoming_shows),
+                }
+                
+                place_data["venues"].append(venue_data)
 
-      place_data = {"city": city, "state": state, "venues": []}
-
-      venues = Venue.query.filter_by(city=city, state=state).all()
-
-      for venue in venues:
-        venue_name = venue.name
-        venue_id = venue.id
-
-        upcoming_shows = (
-          Show.query.filter_by(venue_id=venue_id)
-          .filter(Show.date > today)
-          .all()
-        )
-
-        venue_data = {
-          "id": venue_id,
-          "name": venue_name,
-          "num_upcoming_shows": len(upcoming_shows),
-        }
-
-        place_data["venues"].append(venue_data)
-        
-    response_data.append(place_data)
+          response_list.append(place_data)
 
   except:
     db.session.rollback()
@@ -108,33 +108,8 @@ def venues():
     return render_template("pages/home.html")
 
   finally:
-    return render_template("pages/venues.html", areas=response_data)
+    return render_template("pages/venues.html", areas=response_list)
   
-  
-  
-  # data=[{
-  #   "city": "San Francisco",
-  #   "state": "CA",
-  #   "venues": [{
-  #     "id": 1,
-  #     "name": "The Musical Hop",
-  #     "num_upcoming_shows": 0,
-  #   }, {
-  #     "id": 3,
-  #     "name": "Park Square Live Music & Coffee",
-  #     "num_upcoming_shows": 1,
-  #   }]
-  # }, {
-  #   "city": "New York",
-  #   "state": "NY",
-  #   "venues": [{
-  #     "id": 2,
-  #     "name": "The Dueling Pianos Bar",
-  #     "num_upcoming_shows": 0,
-  #   }]
-  # }]
-  # return render_template('pages/venues.html', areas=data);
-
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
   # TODO: implement search on venues with partial string search. Ensure it is case-insensitive.
