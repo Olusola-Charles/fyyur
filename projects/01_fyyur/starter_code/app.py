@@ -5,19 +5,18 @@
 from distutils.log import error
 from email.policy import default
 from re import T
-from flask import Flask, jsonify, redirect, render_template, request, url_for, abort
+from flask import Flask, jsonify, redirect, render_template, request, url_for, Response, flash, abort
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import ForeignKey, Integer, true, distinct, select
+from sqlalchemy import ForeignKey, Integer, true, distinct
+from sqlalchemy.orm import load_only
 import sys
 from flask_migrate import Migrate
 # My imports end here
 
 import json
 import dateutil.parser
-import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for
+import babel 
 from flask_moment import Moment
-from flask_sqlalchemy import SQLAlchemy
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
@@ -109,21 +108,39 @@ def venues():
 
   finally:
     return render_template("pages/venues.html", areas=response_list)
-  
+
+  # venue/search
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
   # TODO: implement search on venues with partial string search. Ensure it is case-insensitive.
-  # seach for Hop should return "The Musical Hop".
+  # search for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
-  response={
-    "count": 1,
-    "data": [{
-      "id": venue.id,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }
-  return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
+  search_query = request.form.get("search_term", "")
+
+  search_response = {"count": 0, "data": []}
+
+  fields = ["id", "name"]
+  venue_search_results = (
+    db.session.query(Venue)
+    .filter(Venue.name.ilike(f"%{search_query}%"))
+    .options(load_only(*fields))
+    .all()
+    )
+
+  search_response["count"] = len(venue_search_results)
+  
+  for result in venue_search_results:
+        item = {
+          "id": result.id,
+          "name": result.name,
+        }
+        search_response["data"].append(item)
+
+  return render_template(
+    "pages/search_venues.html",
+    results=search_response,
+    search_term=request.form.get("search_term", ""),
+    )
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
